@@ -1,0 +1,156 @@
+import javax.swing.*;
+import java.awt.*;
+
+public class CongkakGame {
+    public static void main(String[] args) {
+        // Initialize the board with 7 seeds in each hole and 0 seeds in each home
+        int[] board = {7, 7, 7, 7, 7, 7, 7, 0, 7, 7, 7, 7, 7, 7, 7, 0};
+        // Set the initial player to be player 1
+        int player = 1;
+        // Declare some variables to store the position, stones, and playAgain flag
+        int position = 0;
+        int stones = 0;
+        boolean playAgain = true;
+
+        // Loop until the game is over or the user cancels
+        while (!gameOver(board)) {
+            // Print the current player's turn and the board
+            String currentPlayerMessage = "Player " + player + "'s turn\n" + getBoardString(board);
+            int response = JOptionPane.showConfirmDialog(null, currentPlayerMessage, "Congkak Game", JOptionPane.OK_CANCEL_OPTION);
+
+            if (response == JOptionPane.CANCEL_OPTION) {
+                // User chose to cancel the game
+                displayCanceledGame("Game canceled", "Game over.gif");
+                System.exit(0); // Exit the game
+            }
+
+            // Prompt the player to choose a valid position (1-7)
+            do {
+                String inputPosition = JOptionPane.showInputDialog("Player " + player + ", choose a position (1-7): ");
+                if (inputPosition == null || !inputPosition.matches("\\d+") || Integer.parseInt(inputPosition) < 1 || Integer.parseInt(inputPosition) > 7) {
+                    // Invalid input, prompt the player to re-enter
+                    JOptionPane.showMessageDialog(null, "Invalid input. Please enter a number from 1 to 7.");
+                    continue;
+                }
+                position = Integer.parseInt(inputPosition) - 1;
+                // Adjust the position according to the player's side
+                if (player == 2) {
+                    position += 8;
+                }
+            } while (!isValidMove(board, position));
+
+            // Get the number of stones in the chosen position and empty it
+            stones = board[position];
+            board[position] = 0;
+
+            // Distribute the stones one by one in a clockwise direction
+            while (stones > 0) {
+                // Move to the next position
+                position = (position + 1) % 16;
+                // Skip the opponent's home
+                if (position == getCongkak(3 - player)) {
+                    continue;
+                }
+                // Add one stone to the current position
+                board[position]++;
+                // Decrease the number of stones
+                stones--;
+            }
+
+            // Check if the last stone landed in an empty hole on the player's side
+            if (board[position] == 1) {
+                // Capture the stones from the opposite hole and add them to the player's home
+                int oppositePosition = getOpposite(position);
+                int capturedStones = board[oppositePosition];
+                board[oppositePosition] = 0;
+                board[position] = 0;
+                board[getCongkak(player)] += capturedStones + 1;
+            }
+
+            // Check if the last stone landed in the player's home
+            if (position == getCongkak(player)) {
+                // The player gets another turn
+                playAgain = true;
+            } else {
+                // The turn ends, and switch to the other player
+                playAgain = false;
+                player = 3 - player;
+            }
+        }
+
+        // Print the final board and scores
+        JOptionPane.showMessageDialog(null, "Final Board:\n" + getBoardString(board));
+        int player1Score = board[getCongkak(1)];
+        int player2Score = board[getCongkak(2)];
+
+        // Declare the winner or a tie with an image
+        if (player1Score > player2Score) {
+            displayWinner("Player 1 wins!", "Winner.gif");
+        } else if (player2Score > player1Score) {
+            displayWinner("Player 2 wins!", "Winner.gif");
+        } else {
+            displayTieGame("It's a tie!", "Draw.gif");
+        }
+    }
+
+    // Check if the game is over, i.e. one of the sides is empty
+    public static boolean gameOver(int[] board) {
+        int sum1 = 0;
+        int sum2 = 0;
+        for (int i = 0; i < 7; i++) {
+            sum1 += board[i];
+            sum2 += board[i + 8];
+        }
+        return sum1 == 0 || sum2 == 0;
+    }
+
+    // Check if the move is valid, i.e. the position is not empty
+    public static boolean isValidMove(int[] board, int position) {
+        return board[position] > 0;
+    }
+
+    // Get the index of the player's home
+    public static int getCongkak(int player) {
+        return (player == 1) ? 7 : 15;
+    }
+
+    // Get the index of the opposite hole
+    public static int getOpposite(int position) {
+        return 14 - position;
+    }
+
+    // Get the board as a string
+    public static String getBoardString(int[] board) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Player2   Hole7   Hole6   Hole5   Hole4   Hole3   Hole2   Hole1  \n");
+        sb.append("                   ");
+        for (int i = 14; i >= 8; i--) {
+            sb.append(board[i]).append("           ");
+        }
+        sb.append("\n");
+        sb.append("     ");
+        sb.append(board[15]).append("                                                                                                            ").append(board[7]).append("\n");
+        sb.append("                   ");
+        for (int i = 0; i < 7; i++) {
+            sb.append(board[i]).append("           ");
+        }
+        sb.append("\n");
+        sb.append("Player1   Hole1   Hole2   Hole3   Hole4   Hole5   Hole6   Hole7  \n");
+        return sb.toString();
+    }
+
+    public static void displayWinner(String message, String imagePath) {
+        JLabel imageLabel = new JLabel(new ImageIcon(imagePath));
+        JOptionPane.showMessageDialog(null, message, "Game Over", JOptionPane.INFORMATION_MESSAGE, new ImageIcon(imagePath));
+    }
+
+    public static void displayCanceledGame(String message, String imagePath) {
+        JLabel imageLabel = new JLabel(new ImageIcon(imagePath));
+        JOptionPane.showMessageDialog(null, message, "Game Canceled", JOptionPane.INFORMATION_MESSAGE, new ImageIcon(imagePath));
+    }
+
+    public static void displayTieGame(String message, String imagePath) {
+        JLabel imageLabel = new JLabel(new ImageIcon(imagePath));
+        JOptionPane.showMessageDialog(null, message, "Tie Game", JOptionPane.INFORMATION_MESSAGE, new ImageIcon(imagePath));
+    }
+}
