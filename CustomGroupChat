@@ -1,0 +1,82 @@
+import java.net.*;
+import java.io.*;
+import java.util.*;
+
+public class CustomGroupChat {
+    private static final String EXIT_COMMAND = "exit";
+    static String nickname;
+    static volatile boolean isFinished = false;
+
+    public static void main(String[] args) {
+        if (args.length != 2) {
+            System.out.println("Usage: java CustomGroupChat <multicast-host> <port-number>");
+        } else {
+            try {
+                InetAddress group = InetAddress.getByName(args[0]);
+                int port = Integer.parseInt(args[1]);
+                Scanner scanner = new Scanner(System.in);
+
+                System.out.print("Enter your nickname: ");
+                nickname = scanner.nextLine();
+
+                MulticastSocket socket = new MulticastSocket(port);
+                socket.setTimeToLive(0);
+                socket.joinGroup(group);
+
+                Thread readThread = new Thread(new ReadThread(socket, group, port));
+                readThread.start();
+
+                System.out.println("Start typing messages...\n");
+
+                while (true) {
+                    String message = scanner.nextLine();
+                    if (message.equalsIgnoreCase(EXIT_COMMAND)) {
+                        isFinished = true;
+                        socket.leaveGroup(group);
+                        socket.close();
+                        break;
+                    }
+                    message = nickname + ": " + message;
+                    byte[] buffer = message.getBytes();
+                    DatagramPacket datagram = new DatagramPacket(buffer, buffer.length, group, port);
+                    socket.send(datagram);
+                }
+            } catch (SocketException se) {
+                System.out.println("Error creating socket");
+                se.printStackTrace();
+            } catch (IOException ie) {
+                System.out.println("Error reading/writing from/to socket");
+                ie.printStackTrace();
+            }
+        }
+    }
+}
+
+class ReadThread implements Runnable {
+    private MulticastSocket socket;
+    private InetAddress group;
+    private int port;
+    private static final int MAX_LEN = 1000;
+
+    ReadThread(MulticastSocket socket, InetAddress group, int port) {
+        this.socket = socket;
+        this.group = group;
+        this.port = port;
+    }
+
+    @Override
+    public void run() {
+        while (!CustomGroupChat.isFinished) {
+            byte[] buffer = new byte[ReadThread.MAX_LEN];
+            DatagramPacket datagram = new DatagramPacket(buffer, buffer.length, group, port);
+            String message;
+            try {
+                socket.receive(datagram);
+                message = new String(buffer, 0, datagram.getLength(), "UTF-8");
+                System.out.println(message);
+            } catch (IOException e) {
+                System.out.println("Socket closed!");
+            }
+        }
+    }
+}
